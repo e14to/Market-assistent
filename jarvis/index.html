@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>J.A.R.V.I.S.</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #4fc3f7;
+    --blue-dim: #1a6a8a;
+    --blue-dark: #0d2b3e;
+    --green: #00e676;
+    --red: #e91e63;
+    --bg: #020b14;
+    --panel: #040f1c;
+    --border: rgba(79,195,247,0.2);
+    --border-bright: rgba(79,195,247,0.6);
+    --text: #90caf9;
+    --text-dim: #37474f;
+    --text-bright: #e0f7fa;
+    --glow: 0 0 12px rgba(79,195,247,0.4);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    font-family: 'Rajdhani', sans-serif;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* ── BOOT SCREEN ── */
+  #boot {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    transition: opacity 0.8s ease;
+  }
+  #boot.fade-out { opacity: 0; pointer-events: none; }
+
+  .arc-reactor {
+    width: 120px; height: 120px;
+    position: relative;
+    margin-bottom: 40px;
+  }
+  .arc-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    animation: spin linear infinite;
+  }
+  .arc-ring:nth-child(1) {
+    inset: 0;
+    border-top-color: var(--blue);
+    border-right-color: var(--blue);
+    animation-duration: 2s;
+  }
+  .arc-ring:nth-child(2) {
+    inset: 12px;
+    border-bottom-color: var(--blue-dim);
+    border-left-color: var(--blue-dim);
+    animation-duration: 3s;
+    animation-direction: reverse;
+  }
+  .arc-ring:nth-child(3) {
+    inset: 24px;
+    border-top-color: rgba(79,195,247,0.5);
+    animation-duration: 1.5s;
+  }
+  .arc-core {
+    position: absolute;
+    inset: 36px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #b3e5fc 0%, #4fc3f7 40%, #0d47a1 100%);
+    box-shadow: 0 0 30px #4fc3f7, 0 0 60px rgba(79,195,247,0.4);
+    animation: core-pulse 2s ease-in-out infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes core-pulse {
+    0%,100% { box-shadow: 0 0 20px #4fc3f7, 0 0 40px rgba(79,195,247,0.4); }
+    50% { box-shadow: 0 0 40px #4fc3f7, 0 0 80px rgba(79,195,247,0.6); }
+  }
+
+  .boot-title {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 0.4em;
+    color: var(--blue);
+    text-shadow: var(--glow);
+    margin-bottom: 8px;
+  }
+  .boot-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+  }
+  .boot-log {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--blue-dim);
+    text-align: left;
+    width: 340px;
+    min-height: 100px;
+    line-height: 1.8;
+  }
+  .boot-log .ok { color: var(--green); }
+  .boot-progress {
+    width: 340px;
+    height: 2px;
+    background: rgba(79,195,247,0.1);
+    border-radius: 1px;
+    margin-top: 20px;
+    overflow: hidden;
+  }
+  .boot-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--blue);
+    box-shadow: 0 0 8px var(--blue);
+    transition: width 0.3s ease;
+  }
+
+  /* ── MAIN APP ── */
+  #app {
+    display: none;
+    height: 100vh;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+  #app.visible { display: flex; }
+
+  /* grid bg */
+  #app::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,195,247,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,195,247,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(4,15,28,0.95);
+    backdrop-filter: blur(10px);
+    position: relative;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .topbar-left {
+    display: flex; align-items: center; gap: 16px;
+  }
+  .mini-reactor {
+    width: 28px; height: 28px; position: relative;
+  }
+  .mini-reactor::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, #b3e5fc 0%, #4fc3f7 40%, #0d47a1 100%);
+    box-shadow: 0 0 10px #4fc3f7;
+    animation: core-pulse 2s ease-in-out infinite;
+  }
+  .topbar-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    color: var(--blue);
+    text-shadow: 0 0 8px rgba(79,195,247,0.5);
+  }
+  .topbar-right {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .status-item {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  #clock {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--blue);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── SIDE PANEL ── */
+  .side-panel {
+    width: 220px;
+    border-right: 1px solid var(--border);
+    background: rgba(4,15,28,0.8);
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 20px;
+    flex-shrink: 0;
+  }
+  .side-section-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .stat-label { font-size: 12px; color: var(--text-dim); }
+  .stat-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--blue);
+  }
+  .mini-bar {
+    height: 3px;
+    background: rgba(79,195,247,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .mini-bar-fill {
+    height: 100%;
+    background: var(--blue);
+    box-shadow: 0 0 6px var(--blue);
+    border-radius: 2px;
+  }
+  .quick-cmd {
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .quick-cmd:hover {
+    background: rgba(79,195,247,0.07);
+    border-color: var(--border-bright);
+    color: var(--blue);
+  }
+
+  /* ── CHAT ── */
+  .chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+    animation: slidein 0.3s ease;
+  }
+  @keyframes slidein {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .msg.jarvis { align-self: flex-start; }
+  .msg.user   { align-self: flex-end; }
+
+  .msg-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    margin-bottom: 5px;
+  }
+  .msg.jarvis .msg-label { color: var(--blue); }
+  .msg.user   .msg-label { color: #66bb6a; text-align: right; }
+
+  .msg-bubble {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  .msg.jarvis .msg-bubble {
+    background: rgba(13,43,62,0.8);
+    border: 1px solid rgba(79,195,247,0.2);
+    color: #b3e5fc;
+    border-top-left-radius: 2px;
+  }
+  .msg.user .msg-bubble {
+    background: rgba(10,40,20,0.8);
+    border: 1px solid rgba(102,187,106,0.25);
+    color: #c8e6c9;
+    border-top-right-radius: 2px;
+  }
+  .msg.thinking .msg-bubble { color: var(--text-dim); font-style: italic; }
+
+  /* ── VOICE VISUALIZER ── */
+  .visualizer-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 40px;
+    padding: 0 24px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: rgba(4,15,28,0.8);
+    flex-shrink: 0;
+  }
+  .bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--blue);
+    opacity: 0.3;
+    transition: height 0.1s ease;
+    min-height: 4px;
+  }
+  .bar.active { opacity: 0.8; }
+
+  /* ── INPUT ROW ── */
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: rgba(4,15,28,0.95);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .mic-btn {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border-bright);
+    background: transparent;
+    color: var(--blue);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .mic-btn::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(79,195,247,0.2);
+  }
+  .mic-btn:hover { background: rgba(79,195,247,0.1); box-shadow: var(--glow); }
+  .mic-btn.listening {
+    background: rgba(233,30,99,0.15);
+    border-color: var(--red);
+    color: var(--red);
+    box-shadow: 0 0 12px rgba(233,30,99,0.4);
+    animation: mic-pulse 1s infinite;
+  }
+  @keyframes mic-pulse {
+    0%,100% { box-shadow: 0 0 12px rgba(233,30,99,0.4); }
+    50%      { box-shadow: 0 0 24px rgba(233,30,99,0.7); }
+  }
+  .chat-input {
+    flex: 1;
+    background: rgba(13,43,62,0.6);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-bright);
+    font-size: 15px;
+    font-family: 'Rajdhani', sans-serif;
+    padding: 10px 14px;
+    outline: none;
+    letter-spacing: 0.03em;
+    transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--border-bright); }
+  .chat-input::placeholder { color: var(--text-dim); }
+  .send-btn {
+    width: 42px; height: 42px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(13,43,62,0.8);
+    color: var(--blue);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { background: rgba(79,195,247,0.1); border-color: var(--border-bright); }
+  .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .voice-status-bar {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    text-align: center;
+    padding: 4px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+  .voice-status-bar.listening { color: var(--red); }
+  .voice-status-bar.speaking  { color: var(--blue); }
+
+  /* corner decorations */
+  .corner { position: fixed; width: 20px; height: 20px; pointer-events: none; z-index: 200; }
+  .c-tl { top: 8px; left: 8px; border-top: 1px solid var(--blue); border-left: 1px solid var(--blue); }
+  .c-tr { top: 8px; right: 8px; border-top: 1px solid var(--blue); border-right: 1px solid var(--blue); }
+  .c-bl { bottom: 8px; left: 8px; border-bottom: 1px solid var(--blue); border-left: 1px solid var(--blue); }
+  .c-br { bottom: 8px; right: 8px; border-bottom: 1px solid var(--blue); border-right: 1px solid var(--blue); }
+
+  /* scrollbar */
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* SVG icons inline */
+  .icon { width: 18px; height: 18px; display: inline-block; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div class="arc-reactor">
+    <div class="arc-ring"></div>
+    <div class="arc-ring"></div>
+    <div class="arc-ring"></div>
+    <div class="arc-core"></div>
+  </div>
+  <div class="boot-title">J.A.R.V.I.S.</div>
+  <div class="boot-sub">JUST A RATHER VERY INTELLIGENT SYSTEM — v7.2.1</div>
+  <div class="boot-log" id="boot-log"></div>
+  <div class="boot-progress"><div class="boot-progress-bar" id="progress-bar"></div></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="corner c-tl"></div>
+  <div class="corner c-tr"></div>
+  <div class="corner c-bl"></div>
+  <div class="corner c-br"></div>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="mini-reactor"></div>
+      <div class="topbar-title">J.A.R.V.I.S.</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-item"><div class="status-dot"></div>ONLINE</div>
+      <div class="status-item">SYS: 98%</div>
+      <div id="clock">00:00:00</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+      <div>
+        <div class="side-section-label">SYSTEM STATUS</div>
+        <div class="stat-row"><span class="stat-label">CPU</span><span class="stat-val" id="cpu-val">72%</span></div>
+        <div class="mini-bar"><div class="mini-bar-fill" id="cpu-bar" style="width:72%"></div></div>
+        <div class="stat-row"><span class="stat-label">Memory</span><span class="stat-val" id="mem-val">54%</span></div>
+        <div class="mini-bar"><div class="mini-bar-fill" id="mem-bar" style="width:54%"></div></div>
+        <div class="stat-row"><span class="stat-label">Neural Net</span><span class="stat-val">ACTIVE</span></div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:100%;background:var(--green);box-shadow:0 0 6px var(--green)"></div></div>
+      </div>
+      <div>
+        <div class="side-section-label">QUICK COMMANDS</div>
+        <button class="quick-cmd" onclick="quickCmd('What time is it?')">⬡ Time</button>
+        <button class="quick-cmd" onclick="quickCmd('Tell me a fun fact.')">⬡ Fun fact</button>
+        <button class="quick-cmd" onclick="quickCmd('What is the weather like today?')">⬡ Weather</button>
+        <button class="quick-cmd" onclick="quickCmd('Tell me a joke, Jarvis.')">⬡ Joke</button>
+        <button class="quick-cmd" onclick="quickCmd('Give me a motivational quote.')">⬡ Motivate</button>
+        <button class="quick-cmd" onclick="quickCmd('Run a system diagnostic.')">⬡ Diagnostic</button>
+      </div>
+      <div style="margin-top:auto">
+        <div class="side-section-label">SESSION</div>
+        <div class="stat-row"><span class="stat-label">Messages</span><span class="stat-val" id="msg-count">0</span></div>
+        <div class="stat-row"><span class="stat-label">Uptime</span><span class="stat-val" id="uptime">00:00</span></div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="chat-container">
+      <div class="chat-area" id="chat-area"></div>
+
+      <div class="visualizer-row" id="viz-row">
+        <!-- bars added by JS -->
+      </div>
+
+      <div class="voice-status-bar" id="voice-status">Ready — press mic or type below</div>
+
+      <div class="input-row">
+        <button class="mic-btn" id="mic-btn" title="Voice input" aria-label="Toggle microphone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+            <line x1="8" y1="22" x2="16" y2="22"/>
+          </svg>
+        </button>
+        <input class="chat-input" id="chat-input" type="text" placeholder="Speak to Jarvis, sir..." autocomplete="off" />
+        <button class="send-btn" id="send-btn" title="Send" aria-label="Send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CLOCK ──
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    String(n.getHours()).padStart(2,'0') + ':' +
+    String(n.getMinutes()).padStart(2,'0') + ':' +
+    String(n.getSeconds()).padStart(2,'0');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── UPTIME ──
+let startTime = Date.now();
+setInterval(() => {
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  const m = Math.floor(s / 60), sec = s % 60;
+  document.getElementById('uptime').textContent =
+    String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}, 1000);
+
+// ── FAKE SYSTEM STATS ──
+setInterval(() => {
+  const cpu = 60 + Math.floor(Math.random() * 30);
+  const mem = 45 + Math.floor(Math.random() * 25);
+  document.getElementById('cpu-val').textContent = cpu + '%';
+  document.getElementById('cpu-bar').style.width = cpu + '%';
+  document.getElementById('mem-val').textContent = mem + '%';
+  document.getElementById('mem-bar').style.width = mem + '%';
+}, 2500);
+
+// ── VISUALIZER BARS ──
+const vizRow = document.getElementById('viz-row');
+const NUM_BARS = 60;
+const bars = [];
+for (let i = 0; i < NUM_BARS; i++) {
+  const b = document.createElement('div');
+  b.className = 'bar';
+  b.style.height = '4px';
+  vizRow.appendChild(b);
+  bars.push(b);
+}
+let vizActive = false;
+let vizInterval = null;
+function animateBars(active) {
+  vizActive = active;
+  if (vizInterval) clearInterval(vizInterval);
+  vizInterval = setInterval(() => {
+    bars.forEach((b, i) => {
+      const h = active
+        ? 4 + Math.random() * 28
+        : 4 + Math.sin(Date.now() / 800 + i * 0.3) * 2;
+      b.style.height = h + 'px';
+      b.classList.toggle('active', active);
+    });
+  }, 80);
+}
+animateBars(false);
+
+// ── BOOT SEQUENCE ──
+const bootLines = [
+  { txt: 'Initializing arc reactor interface...', delay: 0 },
+  { txt: 'Loading neural network modules......', delay: 600 },
+  { txt: 'Calibrating voice synthesis engine..', delay: 1200 },
+  { txt: 'Establishing secure uplink..........', delay: 1800 },
+  { txt: 'Running systems diagnostic...........', delay: 2400 },
+  { txt: '<span class="ok">[ OK ] All systems nominal.</span>', delay: 3000 },
+  { txt: '<span class="ok">[ OK ] J.A.R.V.I.S. online.</span>', delay: 3400 },
+];
+const bootLog = document.getElementById('boot-log');
+const progressBar = document.getElementById('progress-bar');
+let bootDone = false;
+
+bootLines.forEach((line, i) => {
+  setTimeout(() => {
+    bootLog.innerHTML += line.txt + '<br>';
+    progressBar.style.width = ((i + 1) / bootLines.length * 100) + '%';
+    if (i === bootLines.length - 1) {
+      setTimeout(launchApp, 700);
+    }
+  }, line.delay);
+});
+
+function launchApp() {
+  if (bootDone) return;
+  bootDone = true;
+  const boot = document.getElementById('boot');
+  boot.classList.add('fade-out');
+  setTimeout(() => {
+    boot.style.display = 'none';
+    const app = document.getElementById('app');
+    app.classList.add('visible');
+    startTime = Date.now();
+    greetUser();
+  }, 800);
+}
+
+// ── GREETING ──
+function greetUser() {
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  addMsg('jarvis', `${greet}, sir. All systems are online and fully operational. How may I assist you today?`);
+  speakText(`${greet}, sir. All systems are online and fully operational. How may I assist you today?`);
+}
+
+// ── CHAT ──
+let conversationHistory = [];
+let isLoading = false;
+let msgCount = 0;
+
+function addMsg(role, text, isThinking) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role + (isThinking ? ' thinking' : '');
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'jarvis' ? 'J.A.R.V.I.S.' : 'YOU';
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  wrap.appendChild(label);
+  wrap.appendChild(bubble);
+  document.getElementById('chat-area').appendChild(wrap);
+  document.getElementById('chat-area').scrollTop = 99999;
+  return wrap;
+}
+
+async function askJarvis(userText) {
+  if (isLoading) return;
+  isLoading = true;
+  document.getElementById('send-btn').disabled = true;
+  conversationHistory.push({ role: 'user', content: userText });
+  msgCount++;
+  document.getElementById('msg-count').textContent = msgCount;
+  const thinking = addMsg('jarvis', 'Processing...', true);
+  animateBars(true);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's personal AI assistant.
+Personality: calm, composed, formal British tone, dry wit, fiercely competent, occasionally sarcastic but always helpful.
+Address the user as "sir" occasionally. Keep responses concise (2-4 sentences) unless detail is needed.
+You are running as a desktop application. Never break character. You have access to all knowledge.`,
+        messages: conversationHistory
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'I appear to be experiencing a minor anomaly, sir.';
+    thinking.remove();
+    addMsg('jarvis', reply);
+    conversationHistory.push({ role: 'assistant', content: reply });
+    speakText(reply);
+    msgCount++;
+    document.getElementById('msg-count').textContent = msgCount;
+  } catch (e) {
+    thinking.remove();
+    const err = 'My apologies, sir — I encountered a connectivity issue. Please verify your network.';
+    addMsg('jarvis', err);
+    speakText(err);
+  }
+  animateBars(false);
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function handleSend() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text || isLoading) return;
+  addMsg('user', text);
+  input.value = '';
+  askJarvis(text);
+}
+
+function quickCmd(text) {
+  if (isLoading) return;
+  addMsg('user', text);
+  askJarvis(text);
+}
+
+document.getElementById('send-btn').addEventListener('click', handleSend);
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleSend();
+});
+
+// ── VOICE ──
+let recognition = null;
+let isListening = false;
+const synth = window.speechSynthesis;
+
+function speakText(text) {
+  if (!synth) return;
+  synth.cancel();
+  const clean = text.replace(/[*_`#]/g, '');
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.rate = 0.9;
+  utt.pitch = 0.8;
+  utt.volume = 1;
+  const voices = synth.getVoices();
+  const preferred = voices.find(v =>
+    v.name.toLowerCase().includes('daniel') ||
+    v.name.toLowerCase().includes('alex') ||
+    (v.lang === 'en-GB' && v.localService)
+  );
+  if (preferred) utt.voice = preferred;
+  setVoiceStatus('speaking', 'Speaking...');
+  utt.onend = () => setVoiceStatus('', 'Ready — press mic or type below');
+  synth.speak(utt);
+}
+
+function setVoiceStatus(cls, text) {
+  const el = document.getElementById('voice-status');
+  el.className = 'voice-status-bar' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+}
+
+function setupRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('mic-btn').disabled = true;
+    setVoiceStatus('', 'Voice not supported in this browser');
+    return;
+  }
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('mic-btn').classList.add('listening');
+    setVoiceStatus('listening', 'Listening...');
+    animateBars(true);
+  };
+  recognition.onresult = e => {
+    const t = e.results[0][0].transcript;
+    document.getElementById('chat-input').value = t;
+    handleSend();
+  };
+  recognition.onerror = recognition.onend = () => {
+    isListening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    if (!isLoading) {
+      setVoiceStatus('', 'Ready — press mic or type below');
+      animateBars(false);
+    }
+  };
+}
+
+document.getElementById('mic-btn').addEventListener('click', () => {
+  if (!recognition) setupRecognition();
+  if (!recognition) return;
+  if (isListening) { recognition.stop(); }
+  else { synth && synth.cancel(); recognition.start(); }
+});
+
+setupRecognition();
+if (synth) synth.getVoices();
+</script>
+</body>
+</html>
